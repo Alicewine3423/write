@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="theme-color" content="#FFF9F0">
+    <title>奶油笔记本 ✧ 少女写作屋</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* 额外的移动端适配 */
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--cream-base);
+            font-family: system-ui, -apple-system, 'Segoe UI', 'Helvetica Neue', 'Noto Sans', sans-serif;
+        }
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--cream-base);
+            box-shadow: 0 0 40px rgba(0,0,0,0.05);
+            position: relative;
+        }
+        @media (min-width: 768px) {
+            .app-container {
+                flex-direction: row;
+                max-width: 1200px;
+                height: 100vh;
+            }
+            .sidebar {
+                width: 280px;
+                border-right: 1px solid rgba(0,0,0,0.05);
+            }
+        }
+        /* 卷列表折叠动画 */
+        .volume-item > .category-list {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .volume-item.expanded > .category-list {
+            max-height: 500px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1 class="logo">🍰 奶油笔记本</h1>
+                <button class="icon-btn" id="themeToggleBtn" aria-label="切换主题">🎨</button>
+            </div>
+            
+            <!-- 快速操作栏 -->
+            <div class="quick-actions">
+                <button class="quick-btn" id="newVolumeBtn">📁 新建卷</button>
+                <button class="quick-btn" id="newArticleBtn">📝 新建文章</button>
+                <button class="quick-btn" id="backupMenuBtn">💾 备份</button>
+                <button class="quick-btn" id="aiAssistantBtn">🤖 AI助手</button>
+            </div>
+            
+            <!-- 卷&分类树形结构 -->
+            <div class="volume-tree" id="volumeTree">
+                <!-- 动态加载卷列表 -->
+            </div>
+            
+            <!-- 标签云区域 -->
+            <div class="tags-section">
+                <div class="tags-header">
+                    <span>🏷️ 常用标签</span>
+                    <button class="tiny-btn" id="manageTagsBtn">管理</button>
+                </div>
+                <div class="tags-cloud" id="tagsCloud">
+                    <!-- 动态加载标签 -->
+                </div>
+            </div>
+            
+            <!-- 底部用户信息区 -->
+            <div class="user-section">
+                <div class="stats" id="statsPanel">
+                    📊 总字数: <span id="totalWords">0</span>
+                </div>
+                <button class="donate-btn" id="donateBtn">
+                    💝 请我喝奶茶
+                </button>
+            </div>
+        </aside>
+        
+        <!-- 主内容区域 -->
+        <main class="main-content">
+            <!-- 当前路径导航 -->
+            <div class="breadcrumb" id="breadcrumb">
+                <span>📂 全部卷</span>
+            </div>
+            
+            <!-- 编辑器工具栏 -->
+            <div class="editor-toolbar" id="editorToolbar">
+                <button class="tool-btn" data-command="bold" title="加粗">B</button>
+                <button class="tool-btn" data-command="italic" title="斜体">I</button>
+                <button class="tool-btn" data-command="underline" title="下划线">U</button>
+                <span class="toolbar-sep"></span>
+                <button class="tool-btn" data-command="insertBulletsList" title="列表">•</button>
+                <button class="tool-btn" id="insertTagBtn" title="插入标签">#</button>
+                <span class="toolbar-sep"></span>
+                <button class="tool-btn" id="saveArticleBtn" title="保存">💾</button>
+                <button class="tool-btn" id="statsBtn" title="统计">📊</button>
+            </div>
+            
+            <!-- 文章标题输入区 -->
+            <div class="article-title-area">
+                <input type="text" id="articleTitle" placeholder="文章标题..." class="article-title-input">
+                <div class="article-tags-display" id="articleTagsDisplay"></div>
+            </div>
+            
+            <!-- 富文本编辑器主体 -->
+            <div class="editor-container">
+                <div id="richEditor" 
+                     class="rich-editor" 
+                     contenteditable="true" 
+                     placeholder="✎ 开始写作吧...&#10;每句话旁边的小对话框可以查看修改历史哦~">
+                </div>
+            </div>
+            
+            <!-- 底部状态栏 -->
+            <div class="status-bar">
+                <span id="wordCount">字数: 0</span>
+                <span id="sentenceCount">句子: 0</span>
+                <span id="lastSaveTime">💾 已保存</span>
+                <span id="aiStatus"></span>
+            </div>
+        </main>
+    </div>
+    
+    <!-- AI对话框浮动元素 -->
+    <div id="aiFloatingDialog" class="ai-floating-dialog" style="display: none;">
+        <div class="ai-dialog-header">
+            <span>🤖 AI小助手</span>
+            <button id="closeAiDialogBtn">✕</button>
+        </div>
+        <div class="ai-dialog-body" id="aiDialogBody">
+            <div class="ai-messages" id="aiMessages">
+                <div class="ai-message ai">你好！我是AI写作助手，长按选中文字可以让我帮你润色、续写或翻译~</div>
+            </div>
+            <div class="ai-input-area">
+                <input type="text" id="aiInput" placeholder="输入问题，或长按选中文字..." class="ai-input">
+                <button id="sendAiBtn">发送</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 标签管理弹窗 -->
+    <div id="tagManageModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🏷️ 标签管理</h3>
+                <button class="modal-close">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="tag-create">
+                    <input type="text" id="newTagName" placeholder="新标签名">
+                    <button id="createTagBtn">➕ 添加</button>
+                </div>
+                <div class="tag-list" id="tagManageList"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 备份恢复弹窗 -->
+    <div id="backupModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>💾 数据备份与恢复</h3>
+                <button class="modal-close">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="backup-option">
+                    <button id="exportJsonBtn" class="backup-btn">📦 导出JSON备份</button>
+                    <button id="exportHtmlBtn" class="backup-btn">📄 导出HTML阅读版</button>
+                </div>
+                <div class="backup-option">
+                    <label class="file-label">
+                        📂 导入恢复数据
+                        <input type="file" id="importFileInput" accept=".json" style="display: none;">
+                    </label>
+                </div>
+                <div class="backup-settings">
+                    <label>
+                        ⏰ 自动备份
+                        <input type="checkbox" id="autoBackupCheckbox">
+                    </label>
+                    <select id="backupIntervalSelect" style="margin-left: 12px;">
+                        <option value="15">每15分钟</option>
+                        <option value="30" selected>每30分钟</option>
+                        <option value="60">每小时</option>
+                    </select>
+                </div>
+                <div id="backupStatus" class="backup-status"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- AI API设置弹窗 -->
+    <div id="aiSettingsModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🤖 AI助手设置</h3>
+                <button class="modal-close">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="color:#666; font-size: 13px; margin-bottom: 12px;">✨ 免费获取API Key：访问 <a href="https://platform.deepseek.com/" target="_blank">DeepSeek开放平台</a> 注册 → 创建API Key → 粘贴到下方</p>
+                <input type="password" id="apiKeyInput" placeholder="DeepSeek API Key" class="api-key-input">
+                <button id="saveApiKeyBtn" class="primary-btn">保存并测试</button>
+                <div id="apiTestResult" class="api-test-result"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
